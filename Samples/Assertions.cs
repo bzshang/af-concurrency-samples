@@ -12,14 +12,17 @@ using Xunit;
 
 namespace Samples
 {
-    public class TestClass : IDisposable
+    public class Assertions : IDisposable
     {
         private const string elementPath = @"\\MyAssets\MyDatabase\MyElement";
         private AFElement myElement;
         
         #region Plumbing
         
-        public TestClass()
+        // This region contains code that helps us restore to a known good state before
+        // and after each assertion runs.
+
+        public Assertions()
         {
             myElement = new PISystems(true).Find<AFElement>(elementPath);
             myElement.CheckOut();
@@ -36,9 +39,9 @@ namespace Samples
         {
             if (disposing)
             {
-                // Clean up 'myElement'.                
-                // Grab it in a new PISystems context - the current context
-                // might be corrupt due to the nature of the tests we're running.
+                // Clean up 'myElement'. Do this in a new PISystems context - the 
+                // current context might be corrupt due to the nature of some
+                // of the assertions we plan to make.
                 myElement = new PISystems(true).Find<AFElement>(elementPath);
                 myElement.UndoCheckOut(true);
                 myElement.Elements.ToList().ForEach(x => x.Delete());
