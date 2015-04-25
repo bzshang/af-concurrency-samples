@@ -25,6 +25,6 @@ Useful commands
 !dlk (sosex)
 ```
 
-Helpful References
+##Helpful References
 https://msdn.microsoft.com/en-us/library/windows/hardware/ff540665(v=vs.85).aspx
 http://www.stevestechspot.com/default.aspx
