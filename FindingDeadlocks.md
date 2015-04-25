@@ -5,27 +5,27 @@ WinDbg by installing the appropriate [Windows SDK](https://msdn.microsoft.com/en
 for your operating system on your machine.
 
 ```C#
-    const string elementPath = @"\\MyAssets\MyDatabase\MyElement";
-    AFElement myElement = AFObject.FindObject(elementPath) as AFElement;
+const string elementPath = @"\\MyAssets\MyDatabase\MyElement";
+AFElement myElement = AFObject.FindObject(elementPath) as AFElement;
 
-    Task refresh = Task.Run(() =>
+Task refresh = Task.Run(() =>
+{
+    for (int i = 0; i < 100; i++)
     {
-        for (int i = 0; i < 100; i++)
-        {
-            myElement.Refresh();
-        }
-    });
+        myElement.Refresh();
+    }
+});
 
-    Task writer = Task.Run(() =>
+Task writer = Task.Run(() =>
+{
+    for (int i = 0; i < 100; i++)
     {
-        for (int i = 0; i < 100; i++)
-        {
-            myElement.Elements.Add("Child Element " + i);
-            myElement.CheckIn();
-        }
-    });
+        myElement.Elements.Add("Child Element " + i);
+        myElement.CheckIn();
+    }
+});
 
-    await Task.WhenAll(refresh, writer);
+await Task.WhenAll(refresh, writer);
 ```
 
 Executing the code above ought to leave you with a program that appears unresponsive.
