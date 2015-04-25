@@ -114,7 +114,7 @@ Ultimately, this example isn't proof that we've deadlocked -- simply
 that the operations haven't completed in 10 seconds. You could try
 raising this timeout to satisfy your curiosity. If you'd like to see
 conclusive proof for yourself, follow the guide in
-[FindingDeadlocksWithWinDbg.md](FindingDeadlocksWithWinDbg.md).
+[FindingDeadlocks.md](FindingDeadlocks.md).
 
 ### 3. Observe the AF Cache
 One potential approach to solving either of these problems would be to
