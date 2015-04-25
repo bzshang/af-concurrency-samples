@@ -47,7 +47,7 @@ You'll also need a second user account with access to your PI AF Server to
 run one of the test cases. Details are explained in that case.
 
 ## Tutorial
-Follow along in the code in [Assertions.cs](Samples/Assertions.cs).
+Follow along in the code in [Assertions.cs](OSIsoft.AF.ConcurrencySamples/Assertions.cs).
 
 ### 0. Setup and Plumbing
 Note the hardcoded path `elementPath` to the element we'd like to

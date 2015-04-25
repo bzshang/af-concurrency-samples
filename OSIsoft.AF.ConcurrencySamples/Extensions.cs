@@ -1,10 +1,9 @@
-﻿using OSIsoft.AF;
+﻿// Copyright (c) OSIsoft, LLC. All rights reserved. See LICENSE for licensing information.
+
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
+using OSIsoft.AF;
 
 namespace Samples
 {
