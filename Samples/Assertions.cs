@@ -164,10 +164,12 @@ namespace Samples
 
             Assert.NotSame(element1, element2);
 
+            #region Shorthand
             // In shorthand (using an extension method)
             element1 = systems1.Find<AFElement>(elementPath);
             element2 = systems2.Find<AFElement>(elementPath);
             Assert.NotSame(element1, element2);
+            #endregion
         }
 
         [Fact(DisplayName = "06: View Caching Defaults")]
@@ -184,7 +186,6 @@ namespace Samples
             AFGlobalSettings.CacheTime = 0;
 
             PISystems systems = new PISystems(true);
-
             AFElement element1 = systems.Find<AFElement>(elementPath);
             AFElement element2 = systems.Find<AFElement>(elementPath);
 
@@ -330,6 +331,68 @@ namespace Samples
             });
 
             await Task.WhenAll(reader, writer);
+        }
+
+        [Fact(DisplayName = "12: Concurrent/Exclusive Scheduler Pair Redux")]
+        public async Task ConcurrentExclusiveSchedulerPairRedux()
+        {
+            ConcurrentExclusiveSchedulerPair schedulerPair =
+                new ConcurrentExclusiveSchedulerPair();
+            
+            Task writer = Task.Factory.StartNew(
+                () =>
+                {
+                    for (int i = 0; i < 100; i++)
+                    {
+                        myElement.Elements.Add("Child Element " + i);
+                    }
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                schedulerPair.ExclusiveScheduler);
+
+
+            Task reader = Task.Factory.StartNew(
+                () =>
+                {
+                    for (int i = 0; i < 100; i++)
+                    {
+                        foreach (AFElement element in myElement.Elements)
+                        {
+                            JsonConvert.SerializeObject(element);
+                        }
+                    }
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                schedulerPair.ConcurrentScheduler);
+
+            await Task.WhenAll(reader, writer);
+
+            #region Shorthand
+            // In shorthand (using an extension method)
+            writer = schedulerPair.RunExclusive(() =>
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    myElement.Elements.Add("Another Child Element " + i);
+                }
+            });
+
+            reader = schedulerPair.RunConcurrent(() =>
+            {
+                for (int i = 0; i < 100; i++)
+                {
+                    foreach (AFElement element in myElement.Elements)
+                    {
+                        JsonConvert.SerializeObject(element);
+                    }
+                }
+            });
+
+            await Task.WhenAll(reader, writer);
+
+            #endregion
         }
     }
 }
