@@ -130,8 +130,6 @@ namespace Samples
             AFElement element1 = AFObject.FindObject(elementPath) as AFElement;
             AFElement element2 = AFObject.FindObject(elementPath) as AFElement;
 
-            Assert.NotNull(element1);
-            Assert.Equal(element1, element2);
             Assert.Same(element1, element2);
         }
 
