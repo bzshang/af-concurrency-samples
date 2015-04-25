@@ -239,7 +239,7 @@ namespace Samples
             Task reader = Task.Run(() =>
             {
                 for (int i = 0; i < 100; i++)
-                {                  
+                {
                     lock (syncLock)
                     {
                         foreach (AFElement element in myElement.Elements)

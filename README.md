@@ -159,11 +159,11 @@ the PISystems constructor. When `true`, an independent cache is created
 for this PISystems instance. Overloads of the various AF SDK methods
 will key off of an AF object to determine which cache should be used
 when retrieving metadata from AF. In this example, we populate the 
-_relativeFrom_ argument to AFObject.FindObject with an object, which
-causes our test element to be separately retrieved and cached within
-the scopes of two different PISystems instances. We therefore now have
-two separate .NET objects, both of which belong to the current user,
-and both of which refer to the same element in AF.
+_relativeFrom_ argument to AFObject.FindObject, which causes our test 
+element to be separately retrieved and cached within the scopes of two
+different PISystems instances. We therefore now have two separate .NET
+objects, both of which belong to the current user, and both of which 
+refer to the same element in AF.
 
 In the _Shorthand_ region, we demonstrate the exact same property using
 an extension method designed to simplify retrieving an object from
@@ -194,8 +194,8 @@ results in the same object being retrieved by two successive calls to `Find`.
 This merits additional explanation. The AF Cache is built on constructs
 provided by the CLR's memory model and garbage collector. When garbage collection
 is performed, objects in the runtime are inspected. If the collector determines
-them to be dead, they are scheduled to be destroyed so that the memory they
-consume may be reclaimed.
+that an object is no longer live, it is scheduled to be destroyed so that the
+memory it consumes may be reclaimed.
 
 The AF Cache ties in to the .NET Framework's memory management model through the
 use of both strong and weak references. A _weak_ reference allows an object
@@ -207,7 +207,9 @@ With this information in mind, we can revisit the meanings of the AF cache tunin
 parameters:
 
  * `AFGlobalSettings.CacheMaxObjects`: The maximum number of _strong references_
- to keep in the AF cache.
+ to keep in the AF cache. After this limit is reached, the least recently used 
+ references in the cache are converted to weak references, so that this limit
+ is not exceeded.
  * `AFGlobalSettings.CacheTime`: The time period after which any strong references
  in the AF cache may be converted to weak references. Each object in AF has its
  own 'timer' for this purpose, and the timer is reset each time the object is
@@ -226,15 +228,146 @@ Now we can understand the outcome of this case. Even though there are no strong
 references in the AF cache, there are weak references. And on our second call to
 `systems.Find`, there is a strong reference to our test element outside of the AF
 cache- on the line above! The internals of the AF SDK locate the weak reference
-in the cache, the weak reference is clearly capable of being followed, as the
-referenced object is still in memory, and so the same object is retrieved on the
+in the cache. The weak reference is clearly capable of being followed, as the
+referenced object is still in memory. As such, the same object is retrieved on the
 second call.
 
-References:
+####References
  * For more details about the internals of the .NET Framework's garbage collector,
 consult [Fundamentals of Garbage Collection](https://msdn.microsoft.com/en-us/library/ee787088%28v=vs.110%29.aspx).
  * For more details about weak references in the .NET Framework, see
 [WeakReference<T>](https://msdn.microsoft.com/en-us/library/gg712738%28v=vs.110%29.aspx).
 
-### 8. 
+### 8. Observe the Garbage Collector in Action
+In both of these cases, we explore the assertions made above about the nature of
+the .NET Garbage Collector.
 
+####Case One
+We set `AFGlobalSettings.CacheMaxObjects` to 100, and retrieve an element. After
+creating a local weak reference to the element, we set the local variable `myElement`
+to null, removing our local strong reference.
+
+After garbage collection, the weak reference is still resolvable. This is because a
+strong reference still exists in the AF cache.
+
+####Case Two
+We set `AFGlobalSettings.CacheMaxObjects` to 0, and retrieve an element. After
+creating a local weak reference to the element, we set the local variable `myElement`
+to null, removing our local strong reference.
+
+After garbage collection, the weak reference is no longer resolvable. This is because
+the reference that previously existed in the AF cache was also a weak reference,
+due to the object limit in the cache. Since there were no longer any strong references
+to the object in the runtime, at the time that garabage collection occurred, our element
+was determined to be a dead object and was cleared so that its memory could be reclaimed.
+
+### 9. Demonstrate Monitor
+Armed with a full understanding of the AF Cache, we now try to implement a concurrency
+solution on top of the AF SDK to make our example from #1 safe. This first attempt
+uses a _Monitor_, which causes all requests that wish to enter a critical block to
+queue in a single file line.
+
+#### Advantages
+ * Straightforward to consume and reason about
+ * Syntactic sugar built into the language (`lock` statement)
+ * Extremely fast when uncontested (on the order of tens of microseconds)
+ * No unmanaged resources must be used/disposed of.
+
+#### Drawbacks
+ * Does not allow for 'safe' operations (e.g., reads) to happen concurrently
+ * Is thread-based, so protected operations must happen on a single thread, and
+ may not be async.
+
+If your application is low-volume, or the mix of reads and writes is not strongly
+oriented toward reads, and the threading constraints are acceptable, a 
+Monitor/lock statement may be a suitable approach for protecting access.
+
+####References
+ * [lock Statement](https://msdn.microsoft.com/en-us/library/c5kehkcz.aspx)
+ * [Monitor](https://msdn.microsoft.com/en-us/library/system.threading.monitor%28v=vs.110%29.aspx)
+
+### 10. Demonstrate Reader/Writer Lock
+Implementing a Reader/Writer Lock is an incremental step forward over our previous
+case. The reader/writer lock manages access so that operations can run concurrently
+if possible. To demonstrate this, we've changed our previous `for` loop into a call
+to `Parallel.For`, which will attempt to run the protected operations in parallel.
+We've taken care to scope our lock acquisition _within_ the parallelized action, so
+that two of the 'same' action executing in parallel must each acquire their own
+lock.
+
+#### Advantages
+ * Allows for 'safe' operations (e.g., reads) to happen concurrently, while
+ ensuring that unsafe operations get exclusive access.
+ * Very fast (about 65-75% slower than acquiring a monitor, which is still quite fast)
+
+#### Drawbacks
+ * More difficult to program with: try/finally blocks must be written manually,
+ which leaves more opportunities for error.
+ * Is thread-based, so protected operations must happen on a single thread, and
+ may not be async.
+ * The lock consumes native resources, and must be disposed of properly when use
+ is complete.
+
+If your application is high-volume, and there are likely more reads than writes,
+the threading constraints are acceptable, and you can take care to ensure that
+the locks are acquired and released properly, then Reader/Writer Locks may be
+appropriate for your application.
+
+As of the 2015 R2 release, all releases of PI Web API use `ReaderWriterLockSlim`
+to guarantee threadsafe access to the AF SDK.
+
+####References
+ * [ReaderWriterLockSlim](https://msdn.microsoft.com/en-us/library/system.threading.readerwriterlockslim%28v=vs.110%29.aspx)
+
+### 11. Demonstrate Concurrent/Exclusive Scheduler Pair
+`ConcurrentExclusiveSchedulerPair` is a class introduced in the 4.5 version of the
+.NET Framework. The class consists of a pair of TPL `TaskScheduler`s.  Concurrent-safe
+operations may be scheduled on the Concurrent scheduler; others may be scheduled
+on the Exclusive scheduler.
+
+To iterate on our previous example, we convert to ConcurrentExclusiveSchedulerPair,
+and use a `Parallel.For` overload that takes a `ParallelOptions`. The `ParallelOptions`
+is instructed to run its work on one of the two schedulers in the pair.
+
+### 12. Concurrent/Exclusive Scheduler Pair (Redux)
+In this final case, we demonstrate using a concurrent/exclusive scheduler pair
+without `Parallel.For`. In the _Shorthand_ example, we define an extension method
+on the scheduler pair to simplify task creation on the scheduler. We've now
+seen the pair in action in two different scenarios.
+
+#### Advantages
+ * Allows for 'safe' operations (e.g., reads) to happen concurrently, while
+ ensuring that unsafe operations get exclusive access.
+ * Threads are not the unit of protection, so a protected operation can be
+ parallelized.
+ * No unmanaged resources must be used/disposed of.
+
+#### Drawbacks
+ * More cumbersome to program with if you're not used to working with the TPL,
+ or you're not trying to parallelize execution.
+ * No `Task.Run` overload takes a custom scheduler; dispatching must usually happen
+ using `Task.Factory.StartNew`.
+ * The overload of creating and scheduling a task is orders of magnitude higher
+ than acquiring a Monitor or Reader/Writer Lock. There is also performance overhead
+ associated with executing tasks; e.g. marshaling synchronization and execution
+ contexts.
+
+If your application is highly parallel, and the additional performance overhead of
+creating a task and marshaling context is acceptable for your application, the
+concurrent/exclusive scheduler pair may be a good choice for your application.
+
+The PI Web API development team plans to prototype and performance test a
+concurrent/exclusive pair-based approach to managing AF resources for possible
+inclusion in a future PI Web API release.
+
+ ####References
+ * [ConcurrentExclusiveSchedulerPair](https://msdn.microsoft.com/en-us/library/system.threading.tasks.concurrentexclusiveschedulerpair%28v=vs.110%29.aspx)
+
+## Summary
+In this tutorial we've demonstrated a number of properties about the AF SDK,
+and how those properties influence attempts to use it in a concurrent manner.
+We hope that we've given you sufficient strategies to begin determining the
+approach most suitable for your own application.
+
+For questions or comments, please visit [PI Developer's Club](https://pisquare.osisoft.com/community/developers-club)
+on [PI Square](https://pisquare.osisoft.com).
