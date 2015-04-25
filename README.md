@@ -20,8 +20,7 @@ his application, especially considering his use cases and data profile.
 The solution is a Visual Studio 2013 .sln file, which consists of a single C#
 project. Any edition of Visual Studio 2013 (including the free "Community"
 edition) should be sufficient for opening the solution and following the
-tutorial. The project is built on .NET 4.5.2; as such, the .NET 4.5.2
-developer pack will need to be installed.
+tutorial.
 
 The project contains a GAC reference to OSIsoft.AFSDK.dll. You will need to
 install the PI AF Client in order to build and run this project.
