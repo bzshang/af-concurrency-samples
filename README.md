@@ -242,7 +242,7 @@ consult [Fundamentals of Garbage Collection](https://msdn.microsoft.com/en-us/li
 In both of these cases, we explore the assertions made above about the nature of
 the .NET Garbage Collector.
 
-####Case One
+#####Case One
 We set `AFGlobalSettings.CacheMaxObjects` to 100, and retrieve an element. After
 creating a local weak reference to the element, we set the local variable `myElement`
 to null, removing our local strong reference.
@@ -250,7 +250,7 @@ to null, removing our local strong reference.
 After garbage collection, the weak reference is still resolvable. This is because a
 strong reference still exists in the AF cache.
 
-####Case Two
+#####Case Two
 We set `AFGlobalSettings.CacheMaxObjects` to 0, and retrieve an element. After
 creating a local weak reference to the element, we set the local variable `myElement`
 to null, removing our local strong reference.
@@ -267,13 +267,13 @@ solution on top of the AF SDK to make our example from #1 safe. This first attem
 uses a _Monitor_, which causes all requests that wish to enter a critical block to
 queue in a single file line.
 
-#### Advantages
+##### Advantages
  * Straightforward to consume and reason about
  * Syntactic sugar built into the language (`lock` statement)
  * Extremely fast when uncontested (on the order of tens of microseconds)
  * No unmanaged resources must be used/disposed of.
 
-#### Drawbacks
+##### Drawbacks
  * Does not allow for 'safe' operations (e.g., reads) to happen concurrently
  * Is thread-based, so protected operations must happen on a single thread, and
  may not be async.
@@ -295,12 +295,12 @@ We've taken care to scope our lock acquisition _within_ the parallelized action,
 that two of the 'same' action executing in parallel must each acquire their own
 lock.
 
-#### Advantages
+##### Advantages
  * Allows for 'safe' operations (e.g., reads) to happen concurrently, while
  ensuring that unsafe operations get exclusive access.
  * Very fast (about 65-75% slower than acquiring a monitor, which is still quite fast)
 
-#### Drawbacks
+##### Drawbacks
  * More difficult to program with: try/finally blocks must be written manually,
  which leaves more opportunities for error.
  * Is thread-based, so protected operations must happen on a single thread, and
@@ -321,9 +321,10 @@ to guarantee threadsafe access to the AF SDK.
 
 ### 11. Demonstrate Concurrent/Exclusive Scheduler Pair
 `ConcurrentExclusiveSchedulerPair` is a class introduced in the 4.5 version of the
-.NET Framework. The class consists of a pair of TPL `TaskScheduler`s.  Concurrent-safe
+.NET Framework. The class consists of a pair of TPL `TaskScheduler`s. Concurrent-safe
 operations may be scheduled on the Concurrent scheduler; others may be scheduled
-on the Exclusive scheduler.
+on the Exclusive scheduler. This is essentially a TPL-based implementation of a
+reader/writer lock.
 
 To iterate on our previous example, we convert to ConcurrentExclusiveSchedulerPair,
 and use a `Parallel.For` overload that takes a `ParallelOptions`. The `ParallelOptions`
@@ -335,14 +336,14 @@ without `Parallel.For`. In the _Shorthand_ example, we define an extension metho
 on the scheduler pair to simplify task creation on the scheduler. We've now
 seen the pair in action in two different scenarios.
 
-#### Advantages
+##### Advantages
  * Allows for 'safe' operations (e.g., reads) to happen concurrently, while
  ensuring that unsafe operations get exclusive access.
  * Threads are not the unit of protection, so a protected operation can be
  parallelized.
  * No unmanaged resources must be used/disposed of.
 
-#### Drawbacks
+##### Drawbacks
  * More cumbersome to program with if you're not used to working with the TPL,
  or you're not trying to parallelize execution.
  * No `Task.Run` overload takes a custom scheduler; dispatching must usually happen
