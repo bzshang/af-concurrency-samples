@@ -302,13 +302,12 @@ namespace Samples
         [Fact(DisplayName = "11: Demonstrate Concurrent/Exclusive Scheduler Pair")]
         public async Task DemonstrateConcurrentExclusiveSchedulerPair()
         {
-            ConcurrentExclusiveSchedulerPair schedulerPair =
-                new ConcurrentExclusiveSchedulerPair();
+            ConcurrentExclusiveSchedulerPair schedulers = new ConcurrentExclusiveSchedulerPair();
 
             Task writer = Task.Run(() =>
             {
                 ParallelOptions options = new ParallelOptions();
-                options.TaskScheduler = schedulerPair.ExclusiveScheduler;
+                options.TaskScheduler = schedulers.ExclusiveScheduler;
 
                 Parallel.For(1, 100, options, i =>
                 {
@@ -319,7 +318,7 @@ namespace Samples
             Task reader = Task.Run(() =>
             {
                 ParallelOptions options = new ParallelOptions();
-                options.TaskScheduler = schedulerPair.ConcurrentScheduler;
+                options.TaskScheduler = schedulers.ConcurrentScheduler;
 
                 Parallel.For(1, 100, options, i =>
                 {
@@ -336,8 +335,7 @@ namespace Samples
         [Fact(DisplayName = "12: Concurrent/Exclusive Scheduler Pair Redux")]
         public async Task ConcurrentExclusiveSchedulerPairRedux()
         {
-            ConcurrentExclusiveSchedulerPair schedulerPair =
-                new ConcurrentExclusiveSchedulerPair();
+            ConcurrentExclusiveSchedulerPair schedulers = new ConcurrentExclusiveSchedulerPair();
             
             Task writer = Task.Factory.StartNew(
                 () =>
@@ -349,7 +347,7 @@ namespace Samples
                 },
                 CancellationToken.None,
                 TaskCreationOptions.DenyChildAttach,
-                schedulerPair.ExclusiveScheduler);
+                schedulers.ExclusiveScheduler);
 
 
             Task reader = Task.Factory.StartNew(
@@ -365,13 +363,13 @@ namespace Samples
                 },
                 CancellationToken.None,
                 TaskCreationOptions.DenyChildAttach,
-                schedulerPair.ConcurrentScheduler);
+                schedulers.ConcurrentScheduler);
 
             await Task.WhenAll(reader, writer);
 
             #region Shorthand
             // In shorthand (using an extension method)
-            writer = schedulerPair.RunExclusive(() =>
+            writer = schedulers.RunExclusive(() =>
             {
                 for (int i = 0; i < 100; i++)
                 {
@@ -379,7 +377,7 @@ namespace Samples
                 }
             });
 
-            reader = schedulerPair.RunConcurrent(() =>
+            reader = schedulers.RunConcurrent(() =>
             {
                 for (int i = 0; i < 100; i++)
                 {
