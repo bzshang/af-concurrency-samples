@@ -1,9 +1,8 @@
 # AF Concurrency Samples
 
 Programming concurrent and multi-user applications with the PI .NET Framework
-(AF SDK) has historically been a tricky feat to manage. AF SDK was originally
-designed as a single user access mechanism for retrieving data from the PI System,
-and in general is not designed or intended for concurrent use. In this solution,
+(AF SDK) has its challenges. Many of the data access patterns provided by AF
+SDK are intended for single user programs. In this solution,
 we look at some examples of how to parallelize applications that use the AF SDK.
 
 In general, the advice contained in these samples applies to all versions of 
