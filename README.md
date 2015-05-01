@@ -15,6 +15,9 @@ we discuss various techniques and their safety. We leave it to the developer
 to use this information to build a solution that best meets the needs of
 his application, especially considering his use cases and data profile.
 
+This sample is licensed under the MIT license.  See LICENSE in the solution root
+for more information.
+
 ## Getting Started
 The solution is a Visual Studio 2013 .sln file, which consists of a single C#
 project. Any edition of Visual Studio 2013 (including the free "Community"
@@ -25,12 +28,9 @@ The project contains a GAC reference to OSIsoft.AFSDK.dll. You will need to
 install the PI AF Client in order to build and run this project.
 
 You'll want to enable NuGet package restore in Visual Studio, as we depend on
-three groups of NuGet packages:
+two groups of NuGet packages:
  * _Xunit_: The Xunit unit testing framework. We'll use this framework to 
    lay out and prove assumptions about how the AF SDK operates.
- * _Newtonsoft.Json_: The community-standard JSON serializer for .NET. Used
-   in this solution to demonstrate a unit of work that a user might want
-   to perform on an object in the AF SDK.
  * _SimpleImpersonation_: A lightweight library for logging on as and
    impersonating other users. We'll use this to demonstrate some properties
    about how AF SDK works in multi-user scenarios.
@@ -73,14 +73,16 @@ and in enough different orders that eventually the race condition will
 be captured.
 
 In this case, the _writer_ is adding a child element to our test element,
-and the reader is enumerating the child elements and serializing them. When
+and the _reader_ is enumerating the child elements.  Within the iteration of
+reading the children, we have a Thread.Sleep -- which simply represents
+some unit of work that is being done on that child element. When
 performing these operations concurrently, we expect the reader that is
 iterating over the child elements to eventually have trouble when a new
 child is inserted by the writer during the course of that iteration. This
 results in an `InvalidOperationException`.
 
-This outcome is of course possible in any .NET program that uses the non-
-concurrent classes in the .NET collections framework in a parallel
+This outcome is of course possible in any .NET program that uses the
+non-concurrent classes in the .NET collections framework in a parallel
 setting. Indeed, the exception that is thrown ultimately originates from
 a .NET Framework object.
 
@@ -93,12 +95,12 @@ the condition where one thread holds lock A and is waiting on lock B,
 and another thread holds lock B and is waiting on lock A.
 
 In our previous case of colliding readers and writers, the reader eventually
-got an exception. This could conceivably be handled appropriately in a well
+threw an exception. This could conceivably be handled appropriately in a well
 managed program. Trying to recover from a deadlock, on the other hand,
 is likely to leave a program in a corrupt state.
 
 In this case, we're going to create a `CancellationTokenSource` to allow
-us to kill the threads of our child processes once we've determined that
+us to kill the threads assigned to our worker tasks once we've determined that
 they've deadlocked. Our _refresh_ task will simply refresh the element
 definition from the PI AF Server. Our _writer_ looks similar to our
 previous sample-- it will create a child element of our test element,
@@ -306,7 +308,7 @@ lock.
  * The lock consumes native resources, and must be disposed of properly when use
  is complete.
 
-If your application is high-volume, and there are likely more reads than writes,
+If your application is high-volume, there are likely more reads than writes,
 the threading constraints are acceptable, and you can take care to ensure that
 the locks are acquired and released properly, then Reader/Writer Locks may be
 appropriate for your application.

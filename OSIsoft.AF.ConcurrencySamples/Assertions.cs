@@ -4,7 +4,6 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using OSIsoft.AF;
 using OSIsoft.AF.Asset;
 using SimpleImpersonation;
@@ -72,7 +71,8 @@ namespace Samples
                 {
                     foreach (AFElement element in myElement.Elements)
                     {
-                        JsonConvert.SerializeObject(element);
+                        // Do some work.
+                        Thread.Sleep(TimeSpan.FromTicks(100));
                     }
                 }
             });
@@ -244,7 +244,8 @@ namespace Samples
                     {
                         foreach (AFElement element in myElement.Elements)
                         {
-                            JsonConvert.SerializeObject(element);
+                            // Do some work.
+                            Thread.Sleep(TimeSpan.FromTicks(100));
                         }
                     }
                 }
@@ -285,7 +286,8 @@ namespace Samples
                         {
                             foreach (AFElement element in myElement.Elements)
                             {
-                                JsonConvert.SerializeObject(element);
+                                // Do some work.
+                                Thread.Sleep(TimeSpan.FromTicks(100));
                             }
                         }
                         finally
@@ -324,7 +326,8 @@ namespace Samples
                 {
                     foreach (AFElement element in myElement.Elements)
                     {
-                        JsonConvert.SerializeObject(element);
+                        // Do some work.
+                        Thread.Sleep(TimeSpan.FromTicks(100));
                     }
                 });
             });
@@ -337,58 +340,57 @@ namespace Samples
         {
             ConcurrentExclusiveSchedulerPair schedulers = new ConcurrentExclusiveSchedulerPair();
             
-            Task writer = Task.Factory.StartNew(
-                () =>
-                {
-                    for (int i = 0; i < 100; i++)
-                    {
-                        myElement.Elements.Add("Child Element " + i);
-                    }
-                },
-                CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach,
-                schedulers.ExclusiveScheduler);
+            Task[] writers = Enumerable.Range(0, 100)
+                .Select(x => Task.Factory.StartNew(
+                    () => myElement.Elements.Add("Child Element " + x),
+                    CancellationToken.None,
+                    TaskCreationOptions.DenyChildAttach,
+                    schedulers.ExclusiveScheduler))
+                .ToArray();
 
 
-            Task reader = Task.Factory.StartNew(
-                () =>
-                {
-                    for (int i = 0; i < 100; i++)
-                    {
-                        foreach (AFElement element in myElement.Elements)
-                        {
-                            JsonConvert.SerializeObject(element);
-                        }
-                    }
-                },
-                CancellationToken.None,
-                TaskCreationOptions.DenyChildAttach,
-                schedulers.ConcurrentScheduler);
-
-            await Task.WhenAll(reader, writer);
-
-            #region Shorthand
-            // In shorthand (using an extension method)
-            writer = schedulers.RunExclusive(() =>
-            {
-                for (int i = 0; i < 100; i++)
-                {
-                    myElement.Elements.Add("Another Child Element " + i);
-                }
-            });
-
-            reader = schedulers.RunConcurrent(() =>
-            {
-                for (int i = 0; i < 100; i++)
+            Task[] readers = Enumerable.Range(0, 100)
+                .Select(x => Task.Factory.StartNew(() => 
                 {
                     foreach (AFElement element in myElement.Elements)
                     {
-                        JsonConvert.SerializeObject(element);
+                        // Do some work.
+                        Thread.Sleep(TimeSpan.FromTicks(100));
                     }
-                }
-            });
+                },
+                CancellationToken.None,
+                TaskCreationOptions.DenyChildAttach,
+                schedulers.ConcurrentScheduler))
+                .ToArray();
 
-            await Task.WhenAll(reader, writer);
+            Task[] allTasks = new Task[200];
+            writers.CopyTo(allTasks, 0);
+            readers.CopyTo(allTasks, 100);
+
+            await Task.WhenAll(allTasks);
+
+            #region Shorthand
+            // In shorthand (using an extension method)
+            writers = Enumerable.Range(0, 100)
+                .Select(x => schedulers.RunExclusive(
+                    () => myElement.Elements.Add("Another Child Element " + x)))
+                .ToArray();
+
+            readers = Enumerable.Range(0, 100)
+                .Select(x => schedulers.RunConcurrent(() =>
+                    {
+                        foreach (AFElement element in myElement.Elements)
+                        {
+                            // Do some work.
+                            Thread.Sleep(TimeSpan.FromTicks(100));
+                        }
+                    }))
+                .ToArray();
+
+            writers.CopyTo(allTasks, 0);
+            readers.CopyTo(allTasks, 100);
+
+            await Task.WhenAll(allTasks);
 
             #endregion
         }
